@@ -1,0 +1,167 @@
+# Load the dplyr package
+library(dplyr)
+
+# Load the hflights package
+library(hflights)
+head(hflights)
+summary(hflights)
+
+# Convert the hflights data.frame into a hflights tbl
+hflights <- tbl_df(hflights)
+
+# Create the object carriers, containing only the UniqueCarrier variable of hflights
+carriers <- hflights$UniqueCarrier
+
+# Use lut to translate the UniqueCarrier column of hflights. Assign the recoded vector to the UniqueCarrier column.
+lut <- c("AA" = "American", "AS" = "Alaska", "B6" = "JetBlue", "CO" = "Continental", 
+         "DL" = "Delta", "OO" = "SkyWest", "UA" = "United", "US" = "US_Airways", 
+         "WN" = "Southwest", "EV" = "Atlantic_Southeast", "F9" = "Frontier", 
+         "FL" = "AirTran", "MQ" = "American_Eagle", "XE" = "ExpressJet", "YV" = "Mesa")
+
+# Use lut to translate the UniqueCarrier column of hflights
+hflights$UniqueCarrier <- lut[hflights$UniqueCarrier]
+
+# Inspect the resulting raw values of your variables
+glimpse(hflights)
+
+# 5 verbs practice
+# Select
+# Print out the columns Origin up to Cancelled of hflights
+# select: columns Year up to and including DayOfWeek, columns ArrDelay up to and including Diverted. 
+select(hflights, Origin: Cancelled)
+select(hflights, -(5:11))
+
+# Print out only the UniqueCarrier, FlightNum, TailNum, Cancelled, and CancellationCode columns of hflights
+select(hflights, UniqueCarrier, contains("Num"), contains("Cancell"))
+
+# Find the following columns : DepTime, ArrTime, ActualElapsedTime, AirTime, ArrDelay, DepDelay .
+select(hflights, contains("Time"), contains("Delay"))
+
+# both hflights and dplyr are available
+
+ex1r <- hflights[c("TaxiIn","TaxiOut","Distance")]
+ex1d <- select(hflights, 17,18,16)
+
+ex2r <- hflights[c("Year","Month","DayOfWeek","DepTime","ArrTime")]
+ex2d <- select(hflights, 1:6,-3)
+
+ex3r <- hflights[c("TailNum","TaxiIn","TaxiOut")]
+ex3d <- select(hflights, starts_with("Ta"))
+
+# Mutate
+# Add the new variable ActualGroundTime, the difference between ActualElapsedTime and AirTime.
+g1 <- mutate(hflights, ActualGroundTime = ActualElapsedTime - AirTime)
+#  adding an additional column GroundTime. This column is the sum of the TaxiIn and TaxiOut. 
+g2 <- mutate(g1, GroundTime = TaxiIn + TaxiOut)
+# Add a new variable named AverageSpeed that denotes the average speed that each plane flew in miles per hour.
+g3 <- mutate(g2, AverageSpeed = Distance / AirTime * 60)
+
+# Add variable loss_percent and calculate it as the ratio of ArrDelay - DepDelay to DepDelay as a percentage. 
+m1 <- mutate(hflights, loss = ArrDelay - DepDelay, loss_percent = ((ArrDelay - DepDelay)/DepDelay)*100)
+
+# Copy and adapt the previous command to reduce redendancy: m2
+m2 <- mutate(hflights, loss = ArrDelay - DepDelay, loss_percent = (loss/DepDelay)*100)
+
+
+# Add the three variables as described in the third instruction: m3
+m3 <- mutate(hflights, TotalTaxi = TaxiIn + TaxiOut, ActualGroundTime = ActualElapsedTime - AirTime, Diff = TotalTaxi - ActualGroundTime)
+select(m3, Diff)
+
+# Filter 
+# All flights that traveled 3000 miles or more
+filter(hflights, Distance >= 3000)
+
+# All flights flown by one of JetBlue, Southwest, or Delta
+filter(hflights, UniqueCarrier %in% c("JetBlue", "Southwest", "Delta"))
+
+# All flights where taxiing took longer than flying
+filter(hflights, (TaxiIn + TaxiOut) > AirTime )
+
+# All flights that departed before 5am or arrived after 10pm
+filter(hflights, DepTime < 500|ArrTime > 2200)
+
+# All flights that departed late but arrived ahead of schedule
+filter(hflights, DepDelay > 0 , ArrDelay <0)
+
+# All cancelled weekend flights
+filter(hflights, DayOfWeek >5, Cancelled == 1)
+
+# All flights that were cancelled after being delayed
+filter(hflights, DepDelay > 0, Cancelled > 0)   
+
+# Select the flights that had JFK as their destination: c1
+c1 <- filter(hflights, Dest == "JFK")
+
+# Combine the Year, Month and DayofMonth variables to create a Date column: c2
+c2 <- mutate(c1, Date = paste(c1$Year,c1$Month, c1$DayofMonth, sep = "-"))
+c2[,"Date"]
+
+# Print out a selection of columns of c2
+select(c2, Date, DepTime, ArrTime, TailNum)
+
+# Arrange
+# Definition of dtc
+dtc <- filter(hflights, Cancelled == 1, !is.na(DepDelay))
+
+# Arrange dtc by departure delays
+arrange(dtc, DepDelay)
+
+# Arrange dtc so that cancellation reasons are grouped
+arrange(dtc, CancellationCode)
+
+# Arrange dtc according to carrier and departure delays
+arrange(dtc, UniqueCarrier, DepDelay)
+
+# Arrange according to carrier and decreasing departure delays
+arrange(hflights, UniqueCarrier, desc(DepDelay))
+
+# Arrange flights by total delay (normal order).
+arrange(hflights, DepDelay + ArrDelay)
+
+# Keep flights leaving to DFW before 8am and arrange according to decreasing AirTime 
+arrange(filter(hflights, Dest == "DFW", DepTime <800), desc(AirTime))
+
+# Summarise
+# Print out a summary with variables min_dist and max_dist
+summarise(hflights, min_dist = min(Distance), max_dist = max(Distance))
+
+# Print out a summary with variable max_div
+summarise(filter(hflights, Diverted == 1), max_div = max(Distance))
+
+# Remove rows that have NA ArrDelay: temp1
+temp1 <- filter(hflights, !is.na(ArrDelay))
+# Generate summary about ArrDelay column of temp1
+summarise(temp1, earliest = min(ArrDelay), average = mean(ArrDelay), latest = max(ArrDelay), sd = sd(ArrDelay))
+
+# Keep rows that have no NA TaxiIn and no NA TaxiOut: temp2
+temp2 <- filter(hflights, !is.na(TaxiIn), !is.na(TaxiOut))
+
+# Print the maximum taxiing difference of temp2 with summarise()
+summarise(temp2, max_taxi_diff = max(abs(TaxiIn-TaxiOut)))
+
+# Generate summarizing statistics for hflights
+summarise(hflights, n_obs = n(), n_carrier = n_distinct(UniqueCarrier), n_dest =n_distinct(Dest), dest100 = nth(Dest, 100))
+
+# Filter hflights to keep all American Airline flights: aa
+aa <- filter(hflights, UniqueCarrier == "American")
+
+# Generate summarizing statistics for aa 
+summarise(aa, n_flights = n(), n_canc = sum(Cancelled==1), p_canc= 100*mean(Cancelled==1), avg_delay = mean(ArrDelay, na.rm = TRUE))
+
+# Pipe %>% operater
+# Write the 'piped' version of the English sentences.
+hflights %>%
+    mutate(diff= TaxiOut - TaxiIn) %>%
+    filter(!is.na(diff)) %>%
+    summarise(avg = mean(diff))
+    
+# Build data frame with 4 columns of hflights and 2 self-defined columns: d
+d <- hflights %>% select( Dest, UniqueCarrier, Distance, ActualElapsedTime) %>% 
+    mutate(RealTime = ActualElapsedTime + 100, mph = Distance/RealTime*60)
+
+# Filter and summarise d according to the instructions
+d %>% filter (!is.na(mph), mph <70)%>%
+    summarise(n_less = n(), n_dest = n_distinct(Dest), min_dist = min(Distance), max_dist = max(Distance))
+
+
+
